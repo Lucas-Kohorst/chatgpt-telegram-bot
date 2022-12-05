@@ -55,6 +55,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# check if /tmp/playwright exists prior to running  
+prompt_bypass = False
+if not os.path.exists('/tmp/playwright'):
+    prompt_bypass = True
+
 PLAY = sync_playwright().start()
 BROWSER = PLAY.chromium.launch_persistent_context(
     user_data_dir="/tmp/playwright",
@@ -272,7 +277,7 @@ if __name__ == "__main__":
     PAGE.locator('button[name=\"action\"]').click()
 
     # check if /tmp/playwright is empty
-    if not os.listdir("/tmp/playwright"):
+    if prompt_bypass:
         PAGE.locator('button:has-text(\"Next\")').click()
         PAGE.locator('button:has-text(\"Next\")').click()
         PAGE.locator('button:has-text(\"Done\")').click()

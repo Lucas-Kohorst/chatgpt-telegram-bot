@@ -2,7 +2,7 @@
 Description=Run a Telegram chatGPT bot
 
 [Service]
-ExecStart=/root/miniconda3/envs/chat/bin/python /root/chatGPT-telegram-bot/server.py
+ExecStart=/root/miniconda3/envs/chat/bin/python /root/chatgpt-telegram-bot/server.py
 
 [Install]
 WantedBy=multi-user.target

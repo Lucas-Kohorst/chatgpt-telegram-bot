@@ -78,13 +78,9 @@ def is_logged_in():
 def send_message(message):
     # Send the message
     box = get_input_box()
-    # print('Got input')
     box.click()
-    print('Clicked Input')
     box.fill(message)
-    # print('Filled in message')
     box.press("Enter")
-    # print("Message Sent!")
 
 class AtrributeError:
     pass
@@ -102,7 +98,6 @@ def get_last_message():
         # get all children of prose and add them one by one to respons
         response = ""
         for child in prose.query_selector_all('p,pre'):
-            # print(child.get_property('tagName'))
             if str(child.get_property('tagName')) == "PRE":
                 code_container = child.query_selector("div[class*='CodeSnippet__CodeContainer']")
                 response += f"\n```\n{escape_markdown(code_container.inner_text(), version=2)}\n```"
@@ -115,7 +110,7 @@ def get_last_message():
     else:
         response = escape_markdown(prose.inner_text(), version=2)
     
-    print('Received Response\n ' + response)
+    logger.info('Received Response\n ' + response)
     return response
 
 # create a decorator called auth that receives USER_ID as an argument with wraps
@@ -123,14 +118,14 @@ def auth(user_id):
     def decorator(func):
         @wraps(func)
         async def wrapper(update, context):
-            if update.effective_user.id == user_id:
+            if update.effective_user.id == user_id or user_id == '':
                 await func(update, context)
             else:
                 await update.message.reply_text("You are not authorized to use this bot")
         return wrapper
     return decorator
 
-#@auth(USER_ID)
+@auth(USER_ID)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
@@ -139,7 +134,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=ForceReply(selective=True),
     )
 
-#@auth(USER_ID)
+@auth(USER_ID)
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
     await update.message.reply_text(f"""Telegram chatGPT Bot    
@@ -149,17 +144,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
      - /reload, force reload your session
     """)
 
-#@auth(USER_ID)
+@auth(USER_ID)
 async def reload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
-    print(f"Got a reload command from user {update.effective_user.id}")
+    logger.info(f"Got a reload command from user {update.effective_user.id}")
     PAGE.reload()
     await update.message.reply_text("Reloaded the browser!")
     await update.message.reply_text("Let's check if it's workin!")
 
-#@auth(USER_ID)
+@auth(USER_ID)
 async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print(f"Got a draw command from user {update.effective_user.id} with prompt {update.message.text}")
+    logger.info(f"Got a draw command from user {update.effective_user.id} with prompt {update.message.text}")
 
     send_message(f"""
     You a large language model trained by OpenAi. You can be used from different applications. 
@@ -183,7 +178,7 @@ async def respond_with_image(update, response):
     await update.message.reply_photo(photo=photo, caption=f"chatGPT generated prompt: {prompt}",
                                      parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
-#@auth(USER_ID)
+@auth(USER_ID)
 async def browse(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.message.text.replace('/browse','')
     await application.bot.send_chat_action(update.effective_chat.id, "typing")
@@ -201,7 +196,7 @@ I want you to only reply with the output inside and nothing else. Do no write ex
     response = get_last_message()
     # extract prompt from this format [prompt: x]
     response.replace('query: ', '')
-    print(f'Clean response from chatGPT {response}')
+    logger.info(f"Got a browse command from user {update.effective_user.id} with prompt {update.message.text}")
     results = googleSearch(message)
     prompt = f"""
     Pretend I was able to run a google search for "{message}" instead of you and I got the following results: 
@@ -219,15 +214,15 @@ I want you to only reply with the output inside and nothing else. Do no write ex
     else:
         await update.message.reply_text(response, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
-#@auth(USER_ID)
+@auth(USER_ID)
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message."""
     # Send the message to OpenAI
-    print("User Message: " + update.message.text)
+    logger.info(f"Got a message from user {update.effective_user.id} with prompt {update.message.text}")
     send_message(update.message.text)
     await check_loading(update)
     response = get_last_message()
-    print("Response: " + response)
+    logger.info(f"Got a response from chatGPT {response}")
     if "\[prompt:" in response:
         await respond_with_image(update, response)
     else:
@@ -235,14 +230,11 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def check_loading(update):
     # with a timeout of 90 seconds, created a while loop that checks if loading is done
-    # print('loading')
     loading = PAGE.query_selector_all("button[class^='PromptTextarea__PositionSubmit']>.text-2xl")
-    # print('still loading')
     #keep checking len(loading) until it's empty or 45 seconds have passed
     await application.bot.send_chat_action(update.effective_chat.id, "typing")
     start_time = time.time()
     while len(loading) > 0:
-        # print('loop loading')
         if time.time() - start_time > 90:
             break
         time.sleep(0.5)
@@ -252,7 +244,7 @@ async def check_loading(update):
 def start_browser():
     PAGE.goto("https://chat.openai.com/")
     if not is_logged_in():
-        print("Please log in to OpenAI Chat")
+        logger.error("Not logged in, please login and restart the bot")
         process.exit(0)
     else:
         # on different commands - answer in Telegram
@@ -271,19 +263,20 @@ def start_browser():
         application.run_polling()
 
 if __name__ == "__main__":
-    print("Logging into ChatGPT with passed enviroment variables")
+    logger.info("Logging into ChatGPT")
     PAGE.goto('https://chat.openai.com/auth/login')
     PAGE.locator('button:has-text(\"Log in\")').click()
     PAGE.get_by_label("Email address").fill(OPENAI_EMAIL)
     PAGE.locator('button[name=\"action\"]').click()
     PAGE.get_by_label("Password").fill(OPENAI_PASSWORD)
     PAGE.locator('button[name=\"action\"]').click()
-    print("Logged in!")
 
-    # if first time running use these
-    #PAGE.locator('button:has-text(\"Next\")').click()
-    #PAGE.locator('button:has-text(\"Next\")').click()
-    #PAGE.locator('button:has-text(\"Done\")').click()
-    print("Passed intros")
+    # check if /tmp/playwright is empty
+    if not os.listdir("/tmp/playwright"):
+        PAGE.locator('button:has-text(\"Next\")').click()
+        PAGE.locator('button:has-text(\"Next\")').click()
+        PAGE.locator('button:has-text(\"Done\")').click()
+        logger.info("Passed intro messages on first start")
     
+    logger.info("Starting Telegram bot")    
     start_browser()

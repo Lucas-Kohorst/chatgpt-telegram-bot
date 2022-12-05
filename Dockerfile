@@ -23,4 +23,3 @@ RUN playwright install-deps
 # The code to run when container is started:
 COPY server.py .
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "chat", "python", "server.py"]
-

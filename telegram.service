@@ -1,0 +1,8 @@
+[Unit]
+Description=Run a Telegram chatGPT bot
+
+[Service]
+ExecStart=/root/miniconda3/envs/chat/bin/python /root/chatgpt-telegram-bot/server.py
+
+[Install]
+WantedBy=multi-user.target

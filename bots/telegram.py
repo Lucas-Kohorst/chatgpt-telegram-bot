@@ -101,7 +101,7 @@ class Telegram:
         response = get_last_message()
         # extract prompt from this format [prompt: x]
         if "\[prompt:" in response:
-            await respond_with_image(update, response)
+            await self.respond_with_image(update, response)
 
     async def respond_with_image(self, update, response):
         prompt = response.split("\[prompt:")[1].split("\]")[0]
@@ -144,7 +144,7 @@ class Telegram:
         await check_loading(update, self.application)
         response = get_last_message()
         if "\[prompt:" in response:
-            await respond_with_image(update, response, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
+            await self.respond_with_image(update, response, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
         else:
             await update.message.reply_text(response, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
@@ -158,7 +158,7 @@ class Telegram:
         response = get_last_message()
         self.logger.info(f"Got a response from chatGPT {response}")
         if "\[prompt:" in response:
-            await respond_with_image(update, response)
+            await self.espond_with_image(update, response)
         else:
             await update.message.reply_text(response)
 

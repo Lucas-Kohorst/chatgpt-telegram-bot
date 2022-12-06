@@ -14,7 +14,7 @@ import nest_asyncio
 
 from utils.googleSearch import googleSearch
 from utils.sdAPI import drawWithStability
-from utils.chatGPT import send_message, get_last_message, check_loading, start_browser
+from utils.chatGPT import send_message, get_last_message, check_loading, start_browser, reload
 from functools import wraps
 
 nest_asyncio.apply()
@@ -85,13 +85,6 @@ class Telegram:
         - /browse, give chatGPT access to Google
         - /reload, force reload your session
         """)
-
-    #@auth()
-    async def reload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send a message when the command /help is issued."""
-        self.logger.info(f"Got a reload command from user {update.effective_user.id}")
-        PAGE.reload()
-        await update.message.reply_text("Reloaded the browser!")
 
     #@auth()
     async def draw(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -174,7 +167,7 @@ class Telegram:
         start_browser()
 
         self.application.add_handler(CommandHandler("start", self.start))
-        self.application.add_handler(CommandHandler("reload", self.reload))
+        self.application.add_handler(CommandHandler("reload", reload))
         self.application.add_handler(CommandHandler("help", self.help_command))
         self.application.add_handler(CommandHandler("draw", self.draw))
         self.application.add_handler(CommandHandler("browse", self.browse))

@@ -12,6 +12,10 @@ import nest_asyncio
 
 from functools import wraps
 
+from telegram.helpers import escape, escape_markdown
+from telegram import Update
+from telegram.ext import ContextTypes
+
 nest_asyncio.apply()
 dotenv.load_dotenv()
 
@@ -39,13 +43,13 @@ if not os.path.exists('/tmp/playwright'):
 PLAY = sync_playwright().start()
 BROWSER = PLAY.chromium.launch_persistent_context(
     user_data_dir="/tmp/playwright",
-    headless=True,
+    headless=False,
 )
 PAGE = BROWSER.new_page()
 
 def get_input_box():
     """Get the child textarea of `PromptTextarea__TextareaWrapper`"""
-    textarea = PAGE.query_selector("textarea")
+    textarea = PAGE.query_selector(r'//*[@id="__next"]/div/div[1]/main/div[2]/form/div/div[2]/textarea')
     return textarea
 
 def is_logged_in():
@@ -58,26 +62,34 @@ def send_message(message):
     box.click()
     box.fill(message)
     box.press("Enter")
+    logger.info("Sent message: " + message)
 
 class AtrributeError:
     pass
 
+#@auth()
+async def reload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /help is issued."""
+    logger.info(f"Got a reload command from user {update.effective_user.id}")
+    PAGE.reload()
+    await update.message.reply_text("Reloaded the browser!")
+
 def get_last_message():
     """Get the latest message"""
-    page_elements = PAGE.query_selector_all("div[class*='ConversationItem__Message']")
-    logger.info(page_elements)
+    page_elements = PAGE.query_selector_all("div[class*='request-']")
     last_element = page_elements[-1]
-    prose = last_element.query_selector(".prose")
+    prose = last_element
     try:
         code_blocks = prose.query_selector_all("pre")
-    except AtrributeError as e:
+    except Exception as e:
         response = 'Server probably disconnected, try running /reload'
+        return response
     if len(code_blocks) > 0:
         # get all children of prose and add them one by one to respons
         response = ""
         for child in prose.query_selector_all('p,pre'):
             if str(child.get_property('tagName')) == "PRE":
-                code_container = child.query_selector("div[class*='CodeSnippet__CodeContainer']")
+                code_container = child.query_selector("code")
                 response += f"\n```\n{escape_markdown(code_container.inner_text(), version=2)}\n```"
             else:
                 #replace all <code>x</code> things with `x`
@@ -92,8 +104,10 @@ def get_last_message():
     return response
 
 async def check_loading(update, application):
+    #button has an svg of submit, if it's not there, it's likely that the three dots are showing an animation
+    submit_button = PAGE.query_selector_all("textarea+button")[0]
     # with a timeout of 90 seconds, created a while loop that checks if loading is done
-    loading = PAGE.query_selector_all("button[class^='PromptTextarea__PositionSubmit']>.text-2xl")
+    loading = submit_button.query_selector_all(".text-2xl")
     #keep checking len(loading) until it's empty or 45 seconds have passed
     await application.bot.send_chat_action(update.effective_chat.id, "typing")
     start_time = time.time()
@@ -101,7 +115,7 @@ async def check_loading(update, application):
         if time.time() - start_time > 90:
             break
         time.sleep(0.5)
-        loading = PAGE.query_selector_all("button[class^='PromptTextarea__PositionSubmit']>.text-2xl")
+        loading = submit_button.query_selector_all(".text-2xl")
         await application.bot.send_chat_action(update.effective_chat.id, "typing")
 
 def start_browser():
